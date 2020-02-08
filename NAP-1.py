@@ -10,11 +10,24 @@ df=pd.read_csv("df.csv")
 app = Flask(__name__)
 
 @app.route('/query',methods=['POST'])
-def query():
+def call_query():
     req=request.json
-    op1=req['operand1']
-    op2=req['operand2']
-    op=req['operator']
+    if req['query_type'] == "discounted_products_list":
+        return query(req)
+    elif req["query_type"] == "discounted_products_count|avg_discount":
+        return q2(req)
+    elif req["query_type"] == "expensive_list":
+        if len(req.keys())==1:
+            t=list(df.loc[df['competition'] != "0"]['_id'])
+            return jsonify({'expensive_list' : t})
+        else:
+            return q3(req)
+    else:
+        return q4(req)
+def query(req):
+    op1=req['filters'][0]['operand1']
+    op2=req['filters'][0]['operand2']
+    op=req['filters'][0]['operator']
     if op =='>':
         t=list(df.loc[df[op1] > op2]['_id'])
         
@@ -22,13 +35,11 @@ def query():
         t=list(df.loc[df[op1] == op2]['_id'])
     else:
         t=list(df.loc[df[op1] < op2]['_id'])
-    return jsonify({'response':t})
-@app.route('/q2',methods=['POST'])
-def q2():
-    req=request.json
-    op1=req['operand1']
-    op2=req['operand2']
-    op=req['operator']
+    return jsonify({'discounted_products_list' : t})
+def q2(req):
+    op1=req['filters'][0]['operand1']
+    op2=req['filters'][0]['operand2']
+    op=req['filters'][0]['operator']
     if op =='>':
         t=list(df.loc[df[op1] > op2]['discount'])
     elif op == '==':
@@ -38,23 +49,19 @@ def q2():
     t1=len(t)
     t2=sum(t)/len(t)
     return jsonify({'discounted_products_count':t1 , 'avg_discount':t2})
-@app.route('/q3',methods=['POST'])
-def q3():
+def q3(req):
     req = request.json
-    op1 = req['operand1']
-    op2 = req['operand2']
-    op = req['operator']
+    op1 = req['filters'][0]['operand1']
+    op2 = req['filters'][0]['operand2']
+    op = req['filters'][0]['operator']
     if op == '>':
         t = list(df.loc[(df[op1] > op2)&(df['competition'] != "0")]['_id'])
     elif op == '==':
         t = list(df.loc[(df[op1] == op2)&(df['competition'] != "0")]['_id'])
     else:
         t = list(df.loc[(df[op1] < op2)&(df['competition'] != "0")]['_id'])
-    #filter(lambda a: a != "0", t)
     return jsonify({'expensive_list': t})
-@app.route('/q4',methods=['POST'])
-def q4():
-    req = request.json
+def q4(req):
     op1 = req['filters'][0]['operand1']
     op2 = req['filters'][0]['operand2']
     op = req['filters'][0]['operator']
